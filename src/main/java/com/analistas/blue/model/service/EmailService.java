@@ -1,15 +1,17 @@
 package com.analistas.blue.model.service;
 
 import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
-import jakarta.mail.internet.MimeMessage;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
+import jakarta.mail.internet.MimeMessage;
 import java.io.ByteArrayOutputStream;
 
 @Service
+@ConditionalOnProperty(name = "mail.enabled", havingValue = "true")
 public class EmailService {
 
     private final JavaMailSender mailSender;
@@ -26,7 +28,6 @@ public class EmailService {
     ) {
 
         try {
-            // 📄 Generar PDF desde HTML
             ByteArrayOutputStream pdfStream = new ByteArrayOutputStream();
 
             PdfRendererBuilder builder = new PdfRendererBuilder();
@@ -34,7 +35,6 @@ public class EmailService {
             builder.toStream(pdfStream);
             builder.run();
 
-            // 📧 Crear mail
             MimeMessage mensaje = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(mensaje, true, "UTF-8");
 
@@ -50,24 +50,22 @@ public class EmailService {
 
         } catch (Exception e) {
             System.err.println("Error al enviar factura por email: " + e.getMessage());
-            // No arroja excepción para que la compra no se interrumpa
         }
     }
 
     public void enviarEmailSimple(String para, String asunto, String html) {
-    try {
-        MimeMessage mensaje = mailSender.createMimeMessage();
-        MimeMessageHelper helper = new MimeMessageHelper(mensaje, true, "UTF-8");
+        try {
+            MimeMessage mensaje = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(mensaje, true, "UTF-8");
 
-        helper.setTo(para);
-        helper.setSubject(asunto);
-        helper.setText(html, true);
+            helper.setTo(para);
+            helper.setSubject(asunto);
+            helper.setText(html, true);
 
-        mailSender.send(mensaje);
+            mailSender.send(mensaje);
 
-    } catch (Exception e) {
-        System.err.println("Error al enviar email: " + e.getMessage());
+        } catch (Exception e) {
+            System.err.println("Error al enviar email: " + e.getMessage());
+        }
     }
-}
-
 }

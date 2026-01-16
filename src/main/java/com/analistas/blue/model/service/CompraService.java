@@ -6,6 +6,9 @@ import com.analistas.blue.model.domain.Usuario;
 import com.analistas.blue.model.repository.CompraRepository;
 import com.analistas.blue.model.repository.InventarioRepository;
 import com.analistas.blue.model.repository.UsuarioRepository;
+
+import java.util.Optional;
+
 import org.springframework.web.multipart.MultipartFile;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -29,14 +32,19 @@ public class CompraService {
     private final InventarioRepository inventarioRepo;
     private final CompraRepository compraRepo;
     private final UsuarioRepository usuarioRepo;
-    private final EmailService emailService;
+  
+
+private final Optional<EmailService> emailService;
+
 private final AccesorioRepository accesorioRepo;
 
-public CompraService(InventarioRepository inventarioRepo,
-                     CompraRepository compraRepo,
-                     UsuarioRepository usuarioRepo,
-                     EmailService emailService,
-                     AccesorioRepository accesorioRepo) {
+public CompraService(
+        InventarioRepository inventarioRepo,
+        CompraRepository compraRepo,
+        UsuarioRepository usuarioRepo,
+        Optional<EmailService> emailService,
+        AccesorioRepository accesorioRepo
+) {
     this.inventarioRepo = inventarioRepo;
     this.compraRepo = compraRepo;
     this.usuarioRepo = usuarioRepo;
@@ -110,12 +118,15 @@ public Compra comprar(Long accesorioId,
 
     try {
         String htmlFactura = FacturaAdminHtmlBuilder.generarHtml(compra);
-        emailService.enviarFacturaConPdf(
+        emailService.ifPresent(email ->
+        email.enviarFacturaConPdf(
                 usuario.getEmail(),
                 "Factura de tu compra - BlueMotors",
                 htmlFactura,
                 "Factura_BlueMotors_" + compra.getId() + ".pdf"
-        );
+        )
+);
+
     } catch (Exception e) {
         // Solo logueamos el error, no bloqueamos la compra
         System.err.println("Error al enviar factura por email: " + e.getMessage());
@@ -351,12 +362,16 @@ public void subirComprobante(Long compraId, MultipartFile archivo) {
                 compra.getNombreProducto(),
                 compra.getTotal()
             );
+String htmlFactura = FacturaAdminHtmlBuilder.generarHtml(compra);
+          emailService.ifPresent(email ->
+        email.enviarFacturaConPdf(
+                usuario.getEmail(),
+                "Factura de tu compra - BlueMotors",
+                htmlFactura,
+                "Factura_BlueMotors_" + compra.getId() + ".pdf"
+        )
+);
 
-            emailService.enviarEmailSimple(
-                    usuario.getEmail(),
-                    "⏳ Pago pendiente - BlueMotors",
-                    html
-            );
         }
 
     } catch (Exception e) {
@@ -383,12 +398,15 @@ public void aprobarCompraConEmail(Long id) {
 
     String htmlFactura = FacturaAdminHtmlBuilder.generarHtml(compra);
 
-    emailService.enviarFacturaConPdf(
-            usuario.getEmail(),
-            "✅ Compra aprobada - BlueMotors",
-            htmlFactura,
-            "Factura_BlueMotors_" + compra.getId() + ".pdf"
-    );
+   emailService.ifPresent(email ->
+        email.enviarFacturaConPdf(
+                usuario.getEmail(),
+                "Factura de tu compra - BlueMotors",
+                htmlFactura,
+                "Factura_BlueMotors_" + compra.getId() + ".pdf"
+        )
+);
+
 }
 
 
@@ -404,64 +422,14 @@ public void rechazarCompraConEmail(Long id) {
 
     Usuario usuario = compra.getUsuario();
     if (usuario != null && usuario.getEmail() != null) {
-
-    emailService.enviarEmailSimple(
-    usuario.getEmail(),
-    "❌ Pago rechazado - BlueMotors",
-    """
-    <div style="font-family:Arial,Helvetica,sans-serif;background:#f5f7fa;padding:20px">
-      <div style="max-width:600px;margin:auto;background:#ffffff;border-radius:10px;overflow:hidden">
-
-        <div style="background:#dc2626;color:#ffffff;padding:16px">
-          <h2 style="margin:0">Pago rechazado</h2>
-        </div>
-
-        <div style="padding:20px;color:#333">
-          <p>Hola <b>%s</b>,</p>
-
-          <p>
-            Lamentablemente, el comprobante de pago que enviaste
-            <b>no pudo ser validado</b> por nuestro equipo.
-          </p>
-
-          <p>
-            Esto puede deberse a alguno de los siguientes motivos:
-          </p>
-
-          <ul>
-            <li>El comprobante no es legible</li>
-            <li>Los datos no coinciden con el monto de la compra</li>
-            <li>El archivo no corresponde a la transferencia</li>
-          </ul>
-
-          <p>
-            👉 Te invitamos a volver a enviar el comprobante correcto
-            o a comunicarte con nosotros para ayudarte a resolverlo.
-          </p>
-
-          <div style="margin:20px 0;padding:15px;background:#f1f5f9;border-radius:8px">
-            <p style="margin:0"><b>📞 Atención al cliente</b></p>
-            <p style="margin:5px 0">📧 soporte@bluemotors.com</p>
-            <p style="margin:5px 0">📱 WhatsApp: +54 9 11 1234-5678</p>
-          </div>
-
-          <p>
-            Gracias por tu comprensión.<br>
-            Estamos para ayudarte.
-          </p>
-
-          <p style="margin-top:30px">
-            <b>Equipo BlueMotors</b>
-          </p>
-        </div>
-
-        <div style="background:#f1f5f9;text-align:center;padding:10px;font-size:12px;color:#666">
-          © BlueMotors · Todos los derechos reservados
-        </div>
-
-      </div>
-    </div>
-    """.formatted(usuario.getNombre())
+        String htmlFactura = FacturaAdminHtmlBuilder.generarHtml(compra);
+    emailService.ifPresent(email ->
+        email.enviarFacturaConPdf(
+                usuario.getEmail(),
+                "Factura de tu compra - BlueMotors",
+                htmlFactura,
+                "Factura_BlueMotors_" + compra.getId() + ".pdf"
+        )
 );
 
     }
@@ -552,12 +520,15 @@ public void confirmarPagoTarjeta(Long compraId) {
 
         String htmlFactura = FacturaAdminHtmlBuilder.generarHtml(compra);
 
-        emailService.enviarFacturaConPdf(
+        emailService.ifPresent(email ->
+        email.enviarFacturaConPdf(
                 usuario.getEmail(),
-                "✅ Pago aprobado - BlueMotors",
+                "Factura de tu compra - BlueMotors",
                 htmlFactura,
                 "Factura_BlueMotors_" + compra.getId() + ".pdf"
-        );
+        )
+);
+
     }
 }
 
